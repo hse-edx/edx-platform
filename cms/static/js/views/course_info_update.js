@@ -158,7 +158,7 @@ define(["js/views/validation", "codemirror", "js/models/course_update",
             var $textArea = this.$currentPost.find(".new-update-content").first();
             var targetModel = this.eventModel(event);
             // translate long-form date (for viewing) into short-form date (for input)
-            $(this.editor(event)).find('.date').val($.datepicker.formatDate("mm/dd/yy", targetModel.get('date')))
+            $(this.dateEntry(event)).val($.datepicker.formatDate("mm/dd/yy", new Date(targetModel.get('date'))))
             this.$codeMirror = CourseInfoHelper.editWithCodeMirror(
                 targetModel, 'content', self.options['base_asset_url'], $textArea.get(0));
 
