@@ -14,10 +14,11 @@ class AppVersionConfigAdmin(KeyedConfigurationModelAdmin):
     fields = ('platform', 'version', 'expire_at', 'enabled')
     list_filter = ['platform']
 
-    class Meta:  # pylint: disable=old-style-class
-        ordering = ['major_version', 'minor_version', 'patch_version']
+    class Meta(object):
+        ordering = ['-major_version', '-minor_version', '-patch_version']
 
-    def get_list_display(self, request):
+    def get_list_display(self):
+        """ defines fields to display in list view """
         return ['change_date', 'changed_by', 'platform', 'version', 'expire_at', 'enabled', 'edit_link']
 
 admin.site.register(AppVersionConfig, AppVersionConfigAdmin)
