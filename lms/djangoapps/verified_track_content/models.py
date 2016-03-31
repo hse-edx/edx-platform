@@ -3,14 +3,14 @@ Models for verified track selections.
 """
 from django.db import models
 from django.utils.translation import ugettext_lazy
-
-from xmodule_django.models import CourseKeyField
-
 from django.dispatch import receiver, Signal
 from django.db.models.signals import post_save, pre_save
 
+from xmodule_django.models import CourseKeyField
 from student.models import CourseEnrollment
-from openedx.core.djangoapps.course_groups.cohorts import get_cohort_by_name, add_user_to_cohort
+
+from .tasks import sync_cohort_with_mode
+
 
 # TODO: what should the name of this cohort be? What is it for existing courses?
 VERIFIED_COHORT = "verified"
@@ -22,10 +22,17 @@ def move_to_verified_cohort(sender, instance, **kwargs):
     #     1) Feature not enabled (make sure no movement happens between cohorts).
     #     2) Feature enabled, no cohort exists with expected name (log error).
     verified_cohort_enabled = VerifiedTrackCohortedCourse.is_verified_track_cohort_enabled(instance.course_id)
+    # TODO: also verify that the special verified cohort exists (as well as the default cohort)?
     if verified_cohort_enabled and (instance.mode != instance._old_mode):
-        verified_cohort = get_cohort_by_name(instance.course_id, VERIFIED_COHORT)
-        # Can't actually do this yet-- will need to handle middleware layer.
-        # add_user_to_cohort(verified_cohort, instance.user.username)
+        sync_cohort_with_mode.apply_async(
+            kwargs={'course_id': unicode(instance.course_id), 'user_id': instance.user.id},
+            countdown=2
+        )
+
+        sync_cohort_with_mode.apply_async(
+            kwargs={'course_id': unicode(instance.course_id), 'user_id': instance.user.id},
+            countdown=300
+        )
 
 
 @receiver(pre_save, sender=CourseEnrollment)
