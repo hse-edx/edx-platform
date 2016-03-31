@@ -21,7 +21,8 @@ def move_to_verified_cohort(sender, instance, **kwargs):
     # TODO: add following test cases:
     #     1) Feature not enabled (make sure no movement happens between cohorts).
     #     2) Feature enabled, no cohort exists with expected name (log error).
-    verified_cohort_enabled = VerifiedTrackCohortedCourse.is_verified_track_cohort_enabled(instance.course_id)
+    verified_cohort_enabled = True
+    # VerifiedTrackCohortedCourse.is_verified_track_cohort_enabled(instance.course_id)
     # TODO: also verify that the special verified cohort exists (as well as the default cohort)?
     if verified_cohort_enabled and (instance.mode != instance._old_mode):
         sync_cohort_with_mode.apply_async(
