@@ -372,9 +372,6 @@ FEATURES = {
     # lives in the Extended table, saving the frontend from
     # making multiple queries.
     'ENABLE_READING_FROM_MULTIPLE_HISTORY_TABLES': True,
-
-    # Enable Next Button to jump sequences in Sequence Navigation bar.
-    'ENABLE_NEXT_BUTTON_ACROSS_SECTIONS': False,
 }
 
 # Ignore static asset files on import which match this pattern
@@ -443,16 +440,16 @@ OAUTH_OIDC_ISSUER = 'https:/example.com/oauth2'
 # OpenID Connect claim handlers
 
 OAUTH_OIDC_ID_TOKEN_HANDLERS = (
-    'oauth2_provider.oidc.handlers.BasicIDTokenHandler',
-    'oauth2_provider.oidc.handlers.ProfileHandler',
-    'oauth2_provider.oidc.handlers.EmailHandler',
+    'edx_oauth2_provider.oidc.handlers.BasicIDTokenHandler',
+    'edx_oauth2_provider.oidc.handlers.ProfileHandler',
+    'edx_oauth2_provider.oidc.handlers.EmailHandler',
     'oauth2_handler.IDTokenHandler'
 )
 
 OAUTH_OIDC_USERINFO_HANDLERS = (
-    'oauth2_provider.oidc.handlers.BasicUserInfoHandler',
-    'oauth2_provider.oidc.handlers.ProfileHandler',
-    'oauth2_provider.oidc.handlers.EmailHandler',
+    'edx_oauth2_provider.oidc.handlers.BasicUserInfoHandler',
+    'edx_oauth2_provider.oidc.handlers.ProfileHandler',
+    'edx_oauth2_provider.oidc.handlers.EmailHandler',
     'oauth2_handler.UserInfoHandler'
 )
 
@@ -943,7 +940,7 @@ LOCALE_PATHS = (REPO_ROOT + '/conf/locale',)  # edx-platform/conf/locale/
 MESSAGE_STORAGE = 'django.contrib.messages.storage.session.SessionStorage'
 
 # Guidelines for translators
-TRANSLATORS_GUIDE = 'http://edx.readthedocs.org/projects/edx-developer-guide/en/latest/internationalization/i18n_translators_guide.html'  # pylint: disable=line-too-long
+TRANSLATORS_GUIDE = 'http://edx.readthedocs.org/projects/edx-developer-guide/en/latest/conventions/internationalization/i18n_translators_guide.html'  # pylint: disable=line-too-long
 
 #################################### GITHUB #######################################
 # gitreload is used in LMS-workflow to pull content from github
@@ -1251,7 +1248,7 @@ base_vendor_js = [
     'js/vendor/jquery.cookie.js',
     'js/vendor/url.min.js',
     'common/js/vendor/underscore.js',
-    'js/vendor/underscore.string.min.js',
+    'common/js/vendor/underscore.string.js',
 
     # Make some edX UI Toolkit utilities available in the global "edx" namespace
     'edx-ui-toolkit/js/utils/global-loader.js',
@@ -1392,20 +1389,6 @@ PIPELINE_CSS = {
             'js/vendor/tinymce/js/tinymce/skins/studio-tmce4/skin.min.css'
         ],
         'output_filename': 'css/lms-style-vendor-tinymce-skin.css',
-    },
-    'style-main': {
-        # this is unnecessary and can be removed
-        'source_filenames': [
-            'css/lms-main.css',
-        ],
-        'output_filename': 'css/lms-main.css',
-    },
-    'style-main-rtl': {
-        # this is unnecessary and can be removed
-        'source_filenames': [
-            'css/lms-main-rtl.css',
-        ],
-        'output_filename': 'css/lms-main-rtl.css',
     },
     'style-course-vendor': {
         'source_filenames': [
@@ -1829,6 +1812,9 @@ INSTALLED_APPS = (
     # Theming
     'openedx.core.djangoapps.theming',
 
+    # Site configuration for theming and behavioral modification
+    'openedx.core.djangoapps.site_configuration',
+
     # Our courseware
     'courseware',
     'student',
@@ -1853,9 +1839,12 @@ INSTALLED_APPS = (
     'external_auth',
     'django_openid_auth',
 
-    # OAuth2 Provider
+    # django-oauth2-provider (deprecated)
     'provider',
     'provider.oauth2',
+    'edx_oauth2_provider',
+
+    # django-oauth-toolkit
     'oauth2_provider',
 
     'third_party_auth',
@@ -2013,6 +2002,15 @@ INSTALLED_APPS = (
 
     # Management commands used for configuration automation
     'edx_management_commands.management_commands',
+
+    # Verified Track Content Cohorting
+    'verified_track_content',
+
+    # Learner's dashboard
+    'learner_dashboard',
+
+    # Needed whether or not enabled, due to migrations
+    'badges',
 )
 
 # Migrations which are not in the standard module "migrations"
@@ -2256,12 +2254,17 @@ REGISTRATION_EMAIL_PATTERNS_ALLOWED = None
 CERT_NAME_SHORT = "Certificate"
 CERT_NAME_LONG = "Certificate of Achievement"
 
-#################### Badgr OpenBadges generation #######################
+#################### OpenBadges Settings #######################
+
+BADGING_BACKEND = 'badges.backends.badgr.BadgrBackend'
+
 # Be sure to set up images for course modes using the BadgeImageConfiguration model in the certificates app.
 BADGR_API_TOKEN = None
 # Do not add the trailing slash here.
 BADGR_BASE_URL = "http://localhost:8005"
 BADGR_ISSUER_SLUG = "example-issuer"
+# Number of seconds to wait on the badging server when contacting it before giving up.
+BADGR_TIMEOUT = 10
 
 ###################### Grade Downloads ######################
 # These keys are used for all of our asynchronous downloadable files, including
@@ -2573,9 +2576,8 @@ COURSE_ABOUT_VISIBILITY_PERMISSION = 'see_exists'
 # Enrollment API Cache Timeout
 ENROLLMENT_COURSE_DETAILS_CACHE_TIMEOUT = 60
 
-# for Student Notes we would like to avoid too frequent token refreshes (default is 30 seconds)
-if FEATURES['ENABLE_EDXNOTES']:
-    OAUTH_ID_TOKEN_EXPIRATION = 60 * 60
+
+OAUTH_ID_TOKEN_EXPIRATION = 60 * 60
 
 # These tabs are currently disabled
 NOTES_DISABLED_TABS = ['course_structure', 'tags']
@@ -2627,6 +2629,8 @@ ACCOUNT_VISIBILITY_CONFIGURATION = {
         'language_proficiencies',
         'bio',
         'account_privacy',
+        # Not an actual field, but used to signal whether badges should be public.
+        'accomplishments_shared',
     ],
 
     # The list of account fields that are always public
@@ -2654,6 +2658,7 @@ ACCOUNT_VISIBILITY_CONFIGURATION = {
         "mailing_address",
         "requires_parental_consent",
         "account_privacy",
+        "accomplishments_shared",
     ]
 }
 
@@ -2847,3 +2852,7 @@ DEFAULT_SITE_ID = 1
 # Cache time out settings
 # by Comprehensive Theme system
 THEME_CACHE_TIMEOUT = 30 * 60
+
+# API access management
+API_ACCESS_MANAGER_EMAIL = 'api-access@example.com'
+API_ACCESS_FROM_EMAIL = 'api-requests@example.com'
